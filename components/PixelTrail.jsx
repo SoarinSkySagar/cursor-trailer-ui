@@ -1,15 +1,15 @@
-"use client"
+"use client";
 // components/PixelTrailCanvas.js
 import { useEffect, useRef } from 'react';
 
 const PixelTrailCanvas = ({ 
   pixelSize = 5, 
   pixelColor = '0, 0, 0', 
-  trailLength = 20, 
-  fadeSpeed = 0.05, 
-  maxDistance = 100 
+  fadeSpeed = 0.05,
+  trailDuration = 1000 // default trail duration in milliseconds
 }) => {
   const canvasRef = useRef(null);
+  const pixelGridRef = useRef([]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -18,66 +18,64 @@ const PixelTrailCanvas = ({
     const resizeCanvas = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
+      initializePixelGrid();
     };
 
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
+    const initializePixelGrid = () => {
+      const cols = Math.ceil(canvas.width / pixelSize);
+      const rows = Math.ceil(canvas.height / pixelSize);
+      pixelGridRef.current = Array.from({ length: cols }, () => Array.from({ length: rows }, () => ({ alpha: 0, lastUpdateTime: Date.now() })));
+    };
 
-    let mouseX = -100;
-    let mouseY = -100;
-    let lastX = mouseX;
-    let lastY = mouseY;
-    const trail = [];
+    const drawPixels = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const drawPixelTrail = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
+      const cols = Math.ceil(canvas.width / pixelSize);
+      const rows = Math.ceil(canvas.height / pixelSize);
 
-      trail.forEach((p, i) => {
-        ctx.fillStyle = `rgba(${pixelColor}, ${p.alpha})`;
-        ctx.fillRect(p.x, p.y, pixelSize, pixelSize);
-        p.alpha -= fadeSpeed;
-        if (Math.sqrt((p.x - mouseX) ** 2 + (p.y - mouseY) ** 2) > maxDistance) {
-          p.alpha = 0;
+      const now = Date.now();
+
+      for (let x = 0; x < cols; x++) {
+        for (let y = 0; y < rows; y++) {
+          const pixel = pixelGridRef.current[x][y];
+          const elapsed = now - pixel.lastUpdateTime;
+
+          if (pixel.alpha > 0) {
+            ctx.fillStyle = `rgba(${pixelColor}, ${pixel.alpha})`;
+            ctx.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
+            if (elapsed > trailDuration) {
+              pixel.alpha -= fadeSpeed;
+            }
+            if (pixel.alpha < 0) pixel.alpha = 0;
+          }
         }
-      });
+      }
 
-      requestAnimationFrame(drawPixelTrail);
+      requestAnimationFrame(drawPixels);
     };
 
     const handleMouseMove = (e) => {
-      mouseX = e.clientX;
-      mouseY = e.clientY;
+      const x = Math.floor(e.clientX / pixelSize);
+      const y = Math.floor(e.clientY / pixelSize);
 
-      const distance = Math.sqrt((mouseX - lastX) ** 2 + (mouseY - lastY) ** 2);
-      if (distance > pixelSize) {
-        const steps = Math.ceil(distance / pixelSize);
-        const xStep = (mouseX - lastX) / steps;
-        const yStep = (mouseY - lastY) / steps;
-
-        for (let i = 0; i < steps; i++) {
-          lastX += xStep;
-          lastY += yStep;
-          trail.push({ x: lastX, y: lastY, alpha: 1.0 });
-          if (trail.length > trailLength) trail.shift(); // Limit the trail length
-        }
-      } else {
-        trail.push({ x: mouseX, y: mouseY, alpha: 1.0 });
-        if (trail.length > trailLength) trail.shift(); // Limit the trail length
+      if (pixelGridRef.current[x] && pixelGridRef.current[x][y]) {
+        const pixel = pixelGridRef.current[x][y];
+        pixel.alpha = 1.0;
+        pixel.lastUpdateTime = Date.now(); // update the last time this pixel was active
       }
-
-      lastX = mouseX;
-      lastY = mouseY;
     };
 
+    window.addEventListener('resize', resizeCanvas);
     window.addEventListener('mousemove', handleMouseMove);
 
-    drawPixelTrail(); // Start drawing
+    resizeCanvas();
+    drawPixels(); // Start drawing
 
     return () => {
       window.removeEventListener('resize', resizeCanvas);
       window.removeEventListener('mousemove', handleMouseMove);
     };
-  }, [pixelSize, pixelColor, trailLength, fadeSpeed, maxDistance]);
+  }, [pixelSize, pixelColor, fadeSpeed, trailDuration]);
 
   return <canvas ref={canvasRef} style={{ position: 'fixed', top: 0, left: 0, zIndex: 1 }} />;
 };

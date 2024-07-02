@@ -14,11 +14,10 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className={inter.className}>
       <PixelTrailCanvas 
-        pixelSize={18} // Change the pixel size
-        pixelColor="255, 0, 0" // Change the pixel color to red (RGB format)
-        trailLength={50} // Change the number of pixels in the trail
-        fadeSpeed={0.1} // Change the fade speed of the pixels
-        maxDistance={100} // Change the max distance for pixels to disappear
+        pixelSize={30} 
+        pixelColor="255, 0, 0" // Red color
+        fadeSpeed={0.01} 
+        trailDuration={50}
       />
         {children}</body>
     </html>
